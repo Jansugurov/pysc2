@@ -1583,18 +1583,14 @@ class Features(object):
     # Args are valid?
     aif = self._agent_interface_format
     for t, arg in zip(func.args, func_call.arguments):
-      if t.name == "unit_tags":
-        if len(arg) < 1 or len(arg) > t.sizes[0]:
-          raise ValueError(
-            "Wrong number of values for argument of %s, got: %s" % (
-                func, func_call.arguments))
-        continue
       if t.name in ("screen", "screen2"):
         sizes = aif.action_dimensions.screen
       elif t.name == "minimap":
         sizes = aif.action_dimensions.minimap
       elif t.name == "world":
         sizes = aif.raw_resolution
+      elif t.name == "unit_tags":
+        sizes = np.zeros(len(arg) if len(arg) < t.sizes[0] else t.sizes[0])
       else:
         sizes = t.sizes
 
@@ -1608,10 +1604,12 @@ class Features(object):
           if not np.all(0 <= a) and np.all(a < s):
             raise ValueError("Argument is out of range for %s, got: %s" % (
                 func, func_call.arguments))
-
-    # Convert them to python types.
-    kwargs = {type_.name: type_.fn(a)
-              for type_, a in zip(func.args, func_call.arguments)}
+    # i don't know how to make it with dict comprehension
+    kwargs = {}
+    for type_, a in zip(func.args, func_call.arguments):
+      kwargs.update({type_.name: type_.fn(a)} if type_.name != 'unit_tags' else {type_.name: a})
+    # kwargs = {type_.name: type_.fn(a)
+    #           for type_, a in zip(func.args, func_call.arguments)}
 
     # Call the right callback to get an SC2 action proto.
     sc2_action = sc_pb.Action()
